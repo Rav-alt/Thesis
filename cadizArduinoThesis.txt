@@ -1,0 +1,77 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+const char* ssid = "fh_bc6958";
+const char* password = "wlan4396a7";
+
+ESP8266WebServer server(80);
+
+int lastLevel = -1;
+
+const int sensorPin = D0;
+const int relayPin = D1;  // GPIO5
+String currentLevel = "";
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, HIGH);  // Relay OFF initially (LOW for active LOW relay)
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+
+  server.on("/", handleRoot);
+  server.on("/moisture", handleMoisture);
+
+  server.begin();
+  Serial.println("Server started.");
+}
+
+void loop() {
+  server.handleClient();
+  checkMoistureAndControlPump();
+}
+
+void handleRoot() {
+  server.send(200, "text/plain", "ESP8266 Soil Moisture Server");
+}
+
+void handleMoisture() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  String moisture = getMoistureLevel();
+  server.send(200, "application/json", "{\"moisture\": \"" + moisture + "\"}");
+}
+
+String getMoistureLevel() {
+  int sensorValue = analogRead(sensorPin);
+  Serial.print("Sensor Value: ");
+  Serial.println(sensorValue);
+
+  if (sensorValue > 800) currentLevel = "Dry";
+  else if (sensorValue > 400) currentLevel = "Moist";
+  else currentLevel = "Wet";
+
+  return currentLevel;
+}
+
+void checkMoistureAndControlPump() {
+  String moisture = getMoistureLevel();
+
+  if (moisture == "Dry") {
+    digitalWrite(relayPin, LOW);  // Turn ON pump (active LOW)
+    Serial.println("Pump ON - Soil is Dry");
+  } else {
+    digitalWrite(relayPin, HIGH); // Turn OFF pump
+    Serial.println("Pump OFF - Soil is " + moisture);
+  }
+
+  delay(2000);  // Optional delay to prevent relay flickering
+}
