@@ -1,0 +1,213 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+
+const App = () => {
+  const [moisture, setMoisture] = useState("");
+  const [history, setHistory] = useState([]);
+  const lastMoisture = useRef("");
+
+  const fetchMoisture = useCallback(async () => {
+    try {
+      const res = await fetch("http://192.168.1.7/moisture");
+      const data = await res.json();
+      const level = data.moisture;
+
+      setMoisture(level);
+
+      if (level !== lastMoisture.current) {
+        if (level === "Dry") {
+          const now = new Date().toLocaleString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+
+          setHistory((prev) => [
+            { time: now, status: "Watered" },
+            ...prev.slice(0, 9),
+          ]);
+        }
+        lastMoisture.current = level;
+      }
+    } catch (err) {
+      setMoisture("Error");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMoisture();
+    const interval = setInterval(fetchMoisture, 5000);
+    return () => clearInterval(interval);
+  }, [fetchMoisture]);
+
+  const getProgress = () => {
+  switch (moisture) {
+    case "Dry":
+      return { width: "33%", bg: "#A0522D" };
+    case "Moist":
+      return { width: "66%", bg: "#ADFF2F" };
+    case "Wet":
+      return { width: "100%", bg: "#00BFFF" };
+    default:
+      return { width: "0%", bg: "gray" };
+  }
+};
+
+
+  const { width, bg } = getProgress();
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#E6F2E6",
+        padding: 40,
+        minHeight: "100vh",
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        color: "#333",
+        maxWidth: 800,      // increased max width
+        margin: "0 auto",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+        borderRadius: 16,
+      }}
+    >
+      <h2 style={{ textAlign: "center", marginBottom: 30, color: "#2E7D32" }}>
+        Automatic Plant Watering System
+      </h2>
+
+      <div
+        style={{
+          border: "2px solid #2E7D32",
+          borderRadius: 16,
+          width: 200,        // larger plant image box
+          height: 200,
+          margin: "0 auto",
+          backgroundImage:
+            "url('https://cdn-icons-png.flaticon.com/512/427/427735.png')",
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          filter: "drop-shadow(0 0 5px rgba(0,0,0,0.1))",
+        }}
+      ></div>
+
+      <p
+        style={{
+          textAlign: "center",
+          marginTop: 15,
+          fontWeight: "bold",
+          fontSize: 20,
+          color: "#1B5E20",
+        }}
+      >
+        Ficus Plant
+      </p>
+
+      <div style={{ textAlign: "center", marginTop: 40 }}>
+        <p style={{ fontSize: 18 }}>
+          Soil moisture level:{" "}
+          <strong
+            style={{
+              color:
+                moisture === "Dry"
+                  ? "#A0522D"
+                  : moisture === "Moist"
+                  ? "#558B2F"
+                  : moisture === "Wet"
+                  ? "#0277BD"
+                  : "#999",
+            }}
+          >
+            {moisture}
+          </strong>
+        </p>
+
+        {/* Moisture progress bar */}
+        <div
+  style={{
+    width: "100%",
+    maxWidth: 600,
+    height: 40,
+    margin: "30px auto",
+    borderRadius: 20,
+    backgroundColor: "#c8e6c9",
+    position: "relative",
+    overflow: "hidden",
+  }}
+>
+  {/* Fill bar */}
+  <div
+    style={{
+      width: width,
+      height: "100%",
+      backgroundColor: bg,
+      transition: "width 0.5s ease-in-out",
+      borderRadius: "inherit",
+    }}
+  ></div>
+
+  {/* Labels inside */}
+<div
+  style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 20px",
+    fontWeight: "bold",
+    fontSize: 14,
+    color: "#000",
+    pointerEvents: "none",
+  }}
+>
+  <span>dry</span>
+  <span>moist</span>
+  <span style={{ marginRight: "30px" }}>wet</span>
+</div>
+
+</div>
+
+      </div>
+
+      <div
+        style={{
+          border: "2px solid #2E7D32",
+          margin: "50px auto 0",
+          padding: 20,
+          borderRadius: 16,
+          backgroundColor: "#f1f8e9",
+          maxHeight: 300,
+          overflowY: "auto",
+          boxShadow: "0 4px 12px rgba(46, 125, 50, 0.15)",
+        }}
+      >
+        <h3 style={{ color: "#2E7D32", marginBottom: 20 }}>Watering History</h3>
+        {history.length === 0 && (
+          <p style={{ color: "#558B2F", fontStyle: "italic" }}>
+            No watering events yet.
+          </p>
+        )}
+        {history.map((entry, i) => (
+          <p
+            key={i}
+            style={{
+              borderBottom: "1px solid #AED581",
+              padding: "8px 0",
+              margin: 0,
+              fontSize: 16,
+            }}
+          >
+            {entry.time} - <strong>{entry.status}</strong>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default App;
